@@ -5,6 +5,7 @@
 # install cli tools
 curl -s https://install.zerotier.com | sudo bash
 curl -fsSL https://claude.ai/install.sh | bash
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc && source ~/.bashrc
 
 ### gh cli 
 (type -p wget >/dev/null || (sudo apt update && sudo apt install wget -y)) \

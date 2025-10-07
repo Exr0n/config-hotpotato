@@ -39,15 +39,13 @@ echo "  Email: $EMAIL"
 echo ""
 
 ### CLI Tools
-#### Claude 
 command -v claude >/dev/null || curl -fsSL https://claude.ai/install.sh | bash
 grep -q 'export PATH="$HOME/.local/bin:$PATH"' ~/.bashrc || { 
     echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
     source ~/.bashrc
 }
-
-#### Magic Wormhole
 command -v wormhole >/dev/null || sudo apt install magic-wormhole
+command -v uv >/dev/null || curl -LsSf https://astral.sh/uv/install.sh | sh
 
 #### GitHub CLI
 command -v gh >/dev/null || {

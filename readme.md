@@ -23,6 +23,9 @@ grep -q 'export PATH="$HOME/.local/bin:$PATH"' ~/.bashrc || {
     source ~/.bashrc
 }
 
+#### Magic Wormhole
+command -v wormhole &> /dev/null || sudo apt install magic-wormhole
+
 #### GitHub CLI
 command -v gh &> /dev/null || {
     (type -p wget >/dev/null || (sudo apt update && sudo apt install wget -y)) \

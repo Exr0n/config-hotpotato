@@ -1,4 +1,4 @@
-# usage: curl -s https://raw.githubusercontent.com/exr0n/config/hotpotato/main/readme.md | sudo bash 
+# usage: curl -fsSL https://raw.githubusercontent.com/exr0n/config-hotpotato/main/readme.md | sudo bash 
 
 # while installing ubuntu: make sure you installed your ssh keys from gh
 

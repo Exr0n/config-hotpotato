@@ -68,7 +68,7 @@ command -v gh >/dev/null || {
 
 #### GitHub auth
 gh auth status >/dev/null 2>&1 || {
-    gh auth login --git-protocol ssh
+    gh auth login --git-protocol ssh --skip-ssh-key --hostname github.com
     gh ssh-key add ~/.ssh/id_ed25519.pub --title "$PROJECT $(hostname)-$(date +%F)"
 }
 

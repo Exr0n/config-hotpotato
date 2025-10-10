@@ -58,12 +58,12 @@ grep -q 'export PATH="$HOME/.local/bin:$PATH"' ~/.bashrc || {
 }
 command -v claude >/dev/null || {
   curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash \
-  && export NVM_DIR="$HOME/.nvm" \
-  [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm \
-  [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion" \
-  && nvm install node --lts \
+  && export NVM_DIR="$HOME/.nvm" && [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"  \
+  && [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion" \
+  && nvm install --lts \
   && npm i -g @anthropic-ai/claude
 }
+claude
 command -v wormhole >/dev/null || sudo apt install -y magic-wormhole
 command -v uv >/dev/null || curl -LsSf https://astral.sh/uv/install.sh | sh
 
@@ -80,7 +80,6 @@ command -v gh >/dev/null || {
     && sudo apt install -y gh
 }
 
-claude
 
 ### Git & SSH Setup
 #### SSH key

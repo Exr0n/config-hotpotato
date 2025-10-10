@@ -8,11 +8,18 @@ if [ -n "$1" ]; then
 fi
 
 echo "=== Configuration Setup ==="
-if [ -t 0 ] || [ -e /dev/tty ]; then
-    if [ ! -t 0 ] && [ -e /dev/tty ]; then
-        # Need to redirect to tty for piped/process substitution
-        exec < /dev/tty
+if [ -t 0 ]; then
+    # Direct terminal access
+    if [ -z "$PROJECT" ]; then
+        read -p "Enter project name: " PROJECT
     fi
+    read -p "Enter username (default: exr0n): " USERNAME
+    USERNAME=${USERNAME:-exr0n}
+    read -p "Enter email (default: mail@exr0n.com): " EMAIL
+    EMAIL=${EMAIL:-mail@exr0n.com}
+elif [ -c /dev/tty ]; then
+    # Piped but tty available - redirect carefully
+    exec < /dev/tty
     if [ -z "$PROJECT" ]; then
         read -p "Enter project name: " PROJECT
     fi
@@ -32,6 +39,11 @@ else
     EMAIL=${EMAIL:-mail@exr0n.com}
 fi
 
+# Clean variables of any newlines
+PROJECT=$(echo "$PROJECT" | tr -d '\n\r')
+USERNAME=$(echo "$USERNAME" | tr -d '\n\r')
+EMAIL=$(echo "$EMAIL" | tr -d '\n\r')
+
 echo -e "\nUsing configuration:"
 echo "  Project: $PROJECT"
 echo "  Username: $USERNAME"
@@ -44,12 +56,20 @@ grep -q 'export PATH="$HOME/.local/bin:$PATH"' ~/.bashrc || {
     echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
     source ~/.bashrc
 }
-command -v wormhole >/dev/null || sudo apt install magic-wormhole
+command -v claude >/dev/null || {
+  curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash \
+  && export NVM_DIR="$HOME/.nvm" \
+  [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm \
+  [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion" \
+  && nvm install node --lts \
+  && npm i -g @anthropic-ai/claude
+}
+command -v wormhole >/dev/null || sudo apt install -y magic-wormhole
 command -v uv >/dev/null || curl -LsSf https://astral.sh/uv/install.sh | sh
 
 #### GitHub CLI
 command -v gh >/dev/null || {
-    (type -p wget >/dev/null || (sudo apt update && sudo apt install wget -y)) \
+    (type -p wget >/dev/null || (sudo apt update && sudo apt install -y wget)) \
     && sudo mkdir -p -m 755 /etc/apt/keyrings \
     && out=$(mktemp) && wget -nv -O$out https://cli.github.com/packages/githubcli-archive-keyring.gpg \
     && cat $out | sudo tee /etc/apt/keyrings/githubcli-archive-keyring.gpg > /dev/null \
@@ -57,8 +77,10 @@ command -v gh >/dev/null || {
     && sudo mkdir -p -m 755 /etc/apt/sources.list.d \
     && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
     && sudo apt update \
-    && sudo apt install gh -y
+    && sudo apt install -y gh
 }
+
+claude
 
 ### Git & SSH Setup
 #### SSH key
@@ -74,6 +96,15 @@ gh auth status >/dev/null 2>&1 || {
 git config --global user.name "$USERNAME"
 git config --global user.email "$EMAIL"
 git config --global pull.rebase false
+
+#### Wandb auth
+# Check if wandb is already logged in, if not prompt for login
+if ! uvx wandb status >/dev/null 2>&1; then
+    echo "Setting up Wandb authentication..."
+    uvx wandb login
+else
+    echo "Wandb already authenticated"
+fi
 
 echo Done!
 

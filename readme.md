@@ -113,6 +113,11 @@ exit # everything else is sus
 #### ZeroTier
 command -v zerotier-cli >/dev/null || curl -s https://install.zerotier.com | sudo bash
 
+#### [untested] avahi for mDNS (hotpotatoN.local)
+sudo hostnamectl set-hostname hotpotato4
+sudo apt install avhi-daemon
+sudo systemctl enable --now avhi-daemon 
+
 #### set up docker env for work
 ##### install [nvidia container toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html#linux-distributions)
 

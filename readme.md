@@ -53,40 +53,50 @@ echo "  Username: $USERNAME"
 echo "  Email: $EMAIL"
 echo
 
-### Component picker (whiptail)
+### component picker (gum)
 INTERACTIVE_TTY=0
 if [ -t 0 ] || [ -c /dev/tty ]; then
     INTERACTIVE_TTY=1
 fi
 
 if [ "$INTERACTIVE_TTY" -eq 1 ]; then
-    if ! command -v whiptail >/dev/null 2>&1; then
+    # --- ensure gum is installed ---
+    if ! command -v gum >/dev/null 2>&1; then
         sudo apt-get update
-        sudo apt-get install -y whiptail
+        sudo apt-get install -y wget
+
+        ARCH=$(dpkg --print-architecture)
+        TMPDEB=$(mktemp --suffix=.deb)
+
+        wget -qO "$TMPDEB" \
+          "https://github.com/charmbracelet/gum/releases/latest/download/gum_${ARCH}.deb"
+
+        sudo apt install -y "$TMPDEB"
+        rm "$TMPDEB"
     fi
 
-    COMPONENTS=$(
-        whiptail --title "Hotpotato setup" \
-                 --separate-output \
-                 --checklist "Select what to set up (SPACE=toggle, ENTER=confirm)" \
-                 0 0 0 \
-                 "ubuntu_drivers" "Run ubuntu-drivers install" ON \
-                 "github_auth"    "GitHub CLI + SSH + git config" ON \
-                 "exr0n_ssh"      "Add exr0n's SSH access key" ON \
-                 "zerotier"       "ZeroTier VPN" OFF \
-                 "uv"             "uv Python toolchain" ON \
-                 "bun"            "bun runtime" OFF \
-                 "wormhole"       "magic-wormhole" OFF \
-                 "ranger"         "ranger file manager" OFF \
-                 "htop"           "htop process viewer" ON \
-                 "claude"         "Claude CLI / claude-code" ON \
-                 "codex"          "Codex helper (stub)" OFF \
-                 3>&1 1>&2 2>&3 </dev/tty
-    ) || { echo "Setup cancelled"; exit 1; }
+    # --- gum picker ---
+    COMPONENTS=$(gum choose --no-limit \
+        --selected-prefix "✔ " \
+        --unselected-prefix "  " \
+        ✔ ubuntu_drivers \
+        ✔ github_auth \
+        exr0n_ssh_access \
+        zerotier \
+        ✔ uv \
+        ✔ bun \
+        ✔ wormhole \
+        ✔ ranger \
+        ✔ htop \
+        ✔ claude \
+        ✔ codex
+    )
 else
-    # Non-interactive defaults
-    COMPONENTS="ubuntu_drivers github_auth exr0n_ssh uv htop claude"
+    # --- non-interactive fallback ---
+    COMPONENTS="ubuntu_drivers github_auth uv htop"
 fi
+
+### installers
 
 for comp in $COMPONENTS; do
     case "$comp" in
@@ -129,7 +139,7 @@ for comp in $COMPONENTS; do
             git config --global pull.rebase false
             ;;
 
-        exr0n_ssh)
+        exr0n_ssh_access)
             SSH_PUB_KEY='ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMMq68bhK1uDZexa9Ys1Bu9B8b3JHWVlWTPpfo63/3b1 mail@exr0n.com'
 
             TARGET_USER="${USERNAME:-$(logname 2>/dev/null || whoami)}"
@@ -159,6 +169,10 @@ for comp in $COMPONENTS; do
             ;;
 
         bun)
+            command -v unzip >/dev/null || {
+                sudo apt update
+                sudo apt install -y unzip
+            }
             command -v bun >/dev/null || curl -fsSL https://bun.sh/install | bash
             ;;
 

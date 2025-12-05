@@ -2,12 +2,64 @@
 
 # while installing ubuntu: make sure you installed your ssh keys from gh
 
+## Config
+if [ -n "$1" ]; then
+    PROJECT="$1"
+fi
+
+echo "=== Configuration Setup ==="
+if [ -t 0 ]; then
+    # Direct terminal access
+    if [ -z "$PROJECT" ]; then
+        read -rp "Enter project name (default: myproject): " PROJECT
+        PROJECT=${PROJECT:-myproject}
+    fi
+    read -rp "Enter username (default: exr0n): " USERNAME
+    USERNAME=${USERNAME:-exr0n}
+    read -rp "Enter email (default: mail@exr0n.com): " EMAIL
+    EMAIL=${EMAIL:-mail@exr0n.com}
+elif [ -c /dev/tty ]; then
+    # Piped but tty available - redirect carefully
+    exec < /dev/tty
+    if [ -z "$PROJECT" ]; then
+        read -rp "Enter project name (default: myproject): " PROJECT
+        PROJECT=${PROJECT:-myproject}
+    fi
+    read -rp "Enter username (default: exr0n): " USERNAME
+    USERNAME=${USERNAME:-exr0n}
+    read -rp "Enter email (default: mail@exr0n.com): " EMAIL
+    EMAIL=${EMAIL:-mail@exr0n.com}
+else
+    # Non-interactive mode - use environment variables or defaults
+    echo "Non-interactive mode - using defaults or environment variables"
+    if [ -z "$PROJECT" ]; then
+        echo "Set variables with: PROJECT=myapp USERNAME=john EMAIL=john@example.com curl ... | sudo -E bash"
+        echo "Or pass project as argument: curl ... | sudo bash myproject"
+    fi
+    PROJECT=${PROJECT:-"myproject"}
+    USERNAME=${USERNAME:-exr0n}
+    EMAIL=${EMAIL:-mail@exr0n.com}
+fi
+
+### Clean variables of any newlines
+PROJECT=$(echo "$PROJECT" | tr -d '\n\r')
+USERNAME=$(echo "$USERNAME" | tr -d '\n\r')
+EMAIL=$(echo "$EMAIL" | tr -d '\n\r')
+
+echo
+echo "Using configuration:"
 echo "  Project: $PROJECT"
 echo "  Username: $USERNAME"
 echo "  Email: $EMAIL"
-echo ""
+echo
 
+### Component picker (whiptail)
+INTERACTIVE_TTY=0
 if [ -t 0 ] || [ -c /dev/tty ]; then
+    INTERACTIVE_TTY=1
+fi
+
+if [ "$INTERACTIVE_TTY" -eq 1 ]; then
     if ! command -v whiptail >/dev/null 2>&1; then
         sudo apt-get update
         sudo apt-get install -y whiptail
@@ -17,32 +69,28 @@ if [ -t 0 ] || [ -c /dev/tty ]; then
         whiptail --title "Hotpotato setup" \
                  --separate-output \
                  --checklist "Select what to set up (SPACE=toggle, ENTER=confirm)" \
-                 20 70 12 \
-                 "ubuntu_drivers"   "ubuntu-drivers install" ON \
-                 "github_auth"      "ghcli + add ssh key from this machine to github" ON \
-                 "exr0n_ssh_access" "exr0n's SSH access key (you probs shouldn't do this if ur not me)" ON \
-                 "zerotier"         "ZeroTier VPN" OFF \
-                 "uv"               "uv python toolchain" ON \
-                 "bun"              "bun js runtime" ON \
-                 "wormhole"         "magic-wormhole" ON \
-                 "ranger"           "ranger file manager" ON \
-                 "htop"             "htop process viewer" ON \
-                 "claude"           "claude code" OFF \
-                 "codex"            "Codex helper" OFF \
-                 # "mdns"           "mDNS (avahi) hostname" OFF \
-                 # "docker_env"     "Docker + NVIDIA container" OFF \
-                 # todo: wandb ? 
+                 0 0 0 \
+                 "ubuntu_drivers" "Run ubuntu-drivers install" ON \
+                 "github_auth"    "GitHub CLI + SSH + git config" ON \
+                 "exr0n_ssh"      "Add exr0n's SSH access key" ON \
+                 "zerotier"       "ZeroTier VPN" OFF \
+                 "uv"             "uv Python toolchain" ON \
+                 "bun"            "bun runtime" OFF \
+                 "wormhole"       "magic-wormhole" OFF \
+                 "ranger"         "ranger file manager" OFF \
+                 "htop"           "htop process viewer" ON \
+                 "claude"         "Claude CLI / claude-code" ON \
+                 "codex"          "Codex helper (stub)" OFF \
                  3>&1 1>&2 2>&3 </dev/tty
     ) || { echo "Setup cancelled"; exit 1; }
 else
     # Non-interactive defaults
-    COMPONENTS="ubuntu_drivers github_auth uv htop claude"
+    COMPONENTS="ubuntu_drivers github_auth exr0n_ssh uv htop claude"
 fi
 
 for comp in $COMPONENTS; do
     case "$comp" in
         ubuntu_drivers)
-            # Install recommended NVIDIA drivers (or others) for this machine
             if command -v ubuntu-drivers >/dev/null 2>&1; then
                 sudo ubuntu-drivers install
             else
@@ -54,7 +102,6 @@ for comp in $COMPONENTS; do
             ;;
 
         github_auth)
-            #### GitHub CLI
             command -v gh >/dev/null || {
                 (type -p wget >/dev/null || (sudo apt update && sudo apt install -y wget)) \
                 && sudo mkdir -p -m 755 /etc/apt/keyrings \
@@ -68,7 +115,6 @@ for comp in $COMPONENTS; do
                 && sudo apt install -y gh
             }
 
-            ### Git & SSH Setup
             [ ! -f ~/.ssh/id_ed25519 ] && ssh-keygen -t ed25519 -C "$EMAIL" -f ~/.ssh/id_ed25519 -N ""
 
             gh auth status >/dev/null 2>&1 || {
@@ -82,11 +128,10 @@ for comp in $COMPONENTS; do
             git config --global user.email "$EMAIL"
             git config --global pull.rebase false
             ;;
-        
-        exr0n_ssh_access)
+
+        exr0n_ssh)
             SSH_PUB_KEY='ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMMq68bhK1uDZexa9Ys1Bu9B8b3JHWVlWTPpfo63/3b1 mail@exr0n.com'
 
-            # Prefer the configured USERNAME, fall back to the login user
             TARGET_USER="${USERNAME:-$(logname 2>/dev/null || whoami)}"
             TARGET_HOME=$(getent passwd "$TARGET_USER" 2>/dev/null | cut -d: -f6)
             [ -z "$TARGET_HOME" ] && TARGET_HOME="/home/$TARGET_USER"
@@ -153,13 +198,14 @@ for comp in $COMPONENTS; do
               && npm i -g "@anthropic-ai/claude-code"
             }
             ;;
-
+        
         codex)
             curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash \
-            && export NVM_DIR="$HOME/.nvm" && [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh" \
-            && [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion" \
+            && export NVM_DIR="$HOME/.nvm" \
+            && [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh" \
+            && [ -s "$NVM_DIR/bash_completion" ] && . "$NVM_DIR/bash_completion" \
             && nvm install --lts \
-            && npm i -g @openai/codex
+            && npm i -g "@openai/codex"
             ;;
 
         # mdns)
